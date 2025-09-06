@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Beneyney</title>
+<style>
+    :root{--bg:#0b0f14;--fg:#e7eef7;--muted:#93a1b3;--accent:#7dd3fc;--card:#111723;--ok:#34d399;--warn:#f59e0b}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial}
+    .wrap{max-width:960px;margin:auto;padding:24px}
+    header{display:flex;flex-wrap:wrap;align-items:center;gap:12px;justify-content:space-between}
+    header h1{font-size:20px;margin:0}
+    .card{background:var(--card);border:1px solid #1f2937;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.25);padding:16px;margin:16px 0}
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    input,button{border-radius:12px;border:1px solid #1f2937;background:#0f1623;color:var(--fg);padding:10px 12px}
+    input{flex:1;min-width:220px}
+    button{cursor:pointer}
+    button.primary{background:linear-gradient(180deg,#0ea5e9,#0369a1);border:0}
+    button.ghost{background:transparent}
+    button:disabled{opacity:.5;cursor:not-allowed}
+    .badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;background:#0f172a;border:1px solid #243041;color:var(--muted)}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+    video{width:100%;height:180px;background:#000;border-radius:12px}
+    .hint{color:var(--muted);font-size:14px}
+    .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;background:#0f172a;border:1px solid #243041;border-radius:999px}
+    .danger{background:#241217;border-color:#3a1b20;color:#fecaca}
+    .ok{background:#0f2418;border-color:#173121;color:#bbf7d0}
+    .footer{opacity:.7;font-size:12px}
+    .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header>
+      <h1>Beneyney</h1>
+      <span id="status" class="badge">idle</span>
+    </header>
+
+    <div class="card">
+      <div class="row">
+        <input id="room" placeholder="Room ID" />
+        <button id="genRoom">Create Room</button>
+        <button id="copyLink">Copy Join Link</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button id="join" class="primary">Join Room</button>
+        <button id="leave" class="ghost" disabled>Leave</button>
+        <button id="startCam">Start Camera</button>
+        <button id="shareScreen">Share Screen</button>
+        <button id="stopLocal" class="ghost" disabled>Stop Local</button>
+        <button id="muteToggle" class="ghost" disabled>Mute</button>
+      </div>
+      <p class="hint">Tip: Send the join link to your viewer. If they’re on a phone, they may need to tap the video to play audio. Use <em>Share Screen</em> for live streaming your desktop; use <em>Start Camera</em> for a face cam.</p>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0">Your preview</h3>
+      <div class="grid">
+        <video id="self" muted playsinline autoplay></video>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <span id="selfNote" class="pill ok hidden">Streaming to room</span>
+        <span id="noPeers" class="pill">Waiting for peers…</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0">Remote viewers</h3>
+      <div id="peers" class="grid"></div>
+      <p class="hint">Each viewer appears here. Audio autoplay may be blocked on mobile; ask them to tap the video once to start sound.</p>
+    </div>
+
+    <p class="footer">Built with <a href="https://github.com/dmotz/trystero" target="_blank" rel="noreferrer">Trystero</a>. No servers to run—pure P2P.</p>
+</div>
+
+<script type="module">
+import { joinRoom, selfId } from 'https://esm.run/trystero';
+
+const $ = (sel)=>document.querySelector(sel)
+const status = $('#status')
+const roomInput = $('#room')
+const btnJoin = $('#join')
+const btnLeave = $('#leave')
+const btnStartCam = $('#startCam')
+const btnShareScreen = $('#shareScreen')
+const btnStopLocal = $('#stopLocal')
+const btnMute = $('#muteToggle')
+const btnCopy = $('#copyLink')
+const btnGen = $('#genRoom')
+
+const selfVideo = $('#self')
+const peersDiv = $('#peers')
+const selfNote = $('#selfNote')
+const noPeers = $('#noPeers')
+
+let room = null
+let selfStream = null
+let micMuted = false
+
+// Helpers
+function setStatus(text){ status.textContent = text }
+function randId(){ return 'room-' + Math.random().toString(36).slice(2,8) }
+function cleanRoomId(id){ return (id||'').trim().replace(/\s+/g,'-') }
+function getRoomFromURL(){
+  const u = new URL(window.location.href)
+  return cleanRoomId(u.searchParams.get('room') || u.hash.replace(/^#/, '') || '')
+}
+function setURLRoom(r){
+  const u = new URL(window.location.href)
+  u.searchParams.set('room', r)
+  history.replaceState(null, '', u.toString())
+  localStorage.setItem('lastRoom', r)
+}
+
+// UI Wiring
+btnGen.addEventListener('click', ()=>{ roomInput.value = randId(); setURLRoom(roomInput.value) })
+btnCopy.addEventListener('click', async ()=>{
+  if(!roomInput.value) return alert('Enter a room ID first')
+  const link = `${location.origin}${location.pathname}?room=${encodeURIComponent(roomInput.value)}`
+  await navigator.clipboard.writeText(link)
+  btnCopy.textContent = 'Copied!'; setTimeout(()=>btnCopy.textContent='Copy Join Link', 1200)
+})
+
+btnJoin.addEventListener('click', join)
+btnLeave.addEventListener('click', leave)
+btnStartCam.addEventListener('click', startCamera)
+btnShareScreen.addEventListener('click', shareScreen)
+btnStopLocal.addEventListener('click', stopLocal)
+btnMute.addEventListener('click', toggleMute)
+
+// Auto-fill room from URL or last used
+roomInput.value = getRoomFromURL() || localStorage.getItem('lastRoom') || roomInput.value
+
+// Core
+async function join(){
+  const id = cleanRoomId(roomInput.value)
+  if(!id) return alert('Pick a room ID')
+  setURLRoom(id)
+  setStatus('joining…')
+  const config = { appId: 'beneyney-demo' } 
+  room = joinRoom(config, id)
+
+  // Show peer joins/leaves
+  room.onPeerJoin(pid => { noPeers.classList.add('hidden'); toast(`👋 ${pid} joined`) })
+  room.onPeerLeave(pid => { toast(`🚪 ${pid} left`); const el = document.getElementById(`peer-${pid}`); if(el) el.remove(); if(!peersDiv.children.length) noPeers.classList.remove('hidden') })
+
+  // Receive remote streams
+  room.onPeerStream((stream, pid) => {
+    let vid = document.getElementById(`peer-${pid}`)
+    if(!vid){
+      vid = document.createElement('video')
+      vid.id = `peer-${pid}`
+      vid.autoplay = true
+      vid.playsInline = true
+      vid.controls = true
+      vid.addEventListener('click', ()=> vid.muted = false) // tap to unmute on mobile
+      peersDiv.appendChild(vid)
+    }
+    vid.srcObject = stream
+  })
+
+  btnJoin.disabled = true; btnLeave.disabled = false
+  btnStartCam.disabled = false; btnShareScreen.disabled = false
+  btnMute.disabled = false
+  btnMute.textContent = 'Mute'
+  setStatus(`in room · you: ${selfId.slice(0,6)}`)
+}
+
+async function leave(){
+  try{ room && room.leave() }catch{}
+  room = null
+  setStatus('idle')
+  btnJoin.disabled = false; btnLeave.disabled = true
+  btnStartCam.disabled = true; btnShareScreen.disabled = true
+  btnStopLocal.disabled = true; btnMute.disabled = true
+  peersDiv.innerHTML = ''
+  noPeers.classList.remove('hidden')
+  stopLocal()
+}
+
+async function startCamera(){
+  try{
+    const s = await navigator.mediaDevices.getUserMedia({ video:true, audio:true })
+    await startLocalStream(s)
+  } catch(err){ alert('Could not access camera/mic: '+ err.message) }
+}
+
+async function shareScreen(){
+  try{
+    const s = await navigator.mediaDevices.getDisplayMedia({ video:true, audio:true })
+    try{
+      const mic = await navigator.mediaDevices.getUserMedia({ audio:true })
+      mic.getAudioTracks().forEach(t=> s.addTrack(t))
+    }catch{}
+    await startLocalStream(s)
+  } catch(err){ alert('Screen share failed: ' + err.message) }
+}
+
+async function startLocalStream(stream){
+  if(selfStream){ selfStream.getTracks().forEach(t=> t.stop()) }
+  selfStream = stream
+  selfVideo.srcObject = stream
+  selfNote.classList.remove('hidden')
+  btnStopLocal.disabled = false
+
+  if(!room) await join()
+
+  room.addStream(stream)
+  room.onPeerJoin(pid => room.addStream(stream, pid))
+
+  stream.getTracks().forEach(track=> track.addEventListener('ended', stopLocal))
+}
+
+function stopLocal(){
+  if(selfStream){ selfStream.getTracks().forEach(t=> t.stop()); selfStream=null }
+  selfVideo.srcObject = null
+  selfNote.classList.add('hidden')
+  btnStopLocal.disabled = true
+}
+
+function toggleMute(){
+  if(!selfStream) return
+  micMuted = !micMuted
+  selfStream.getAudioTracks().forEach(t=> t.enabled = !micMuted)
+  btnMute.textContent = micMuted ? 'Unmute' : 'Mute'
+}
+
+function toast(msg){
+  const el = document.createElement('div')
+  el.textContent = msg
+  el.style.position='fixed';el.style.right='16px';el.style.bottom='16px';el.style.padding='10px 12px';el.style.borderRadius='12px';el.style.background='#0f172a';el.style.border='1px solid #243041';el.style.color='white';el.style.opacity='0.95';
+  document.body.appendChild(el); setTimeout(()=>el.remove(), 2200)
+}
+
+// Auto-join if room provided in URL
+if(roomInput.value) { join().catch(console.error) }
+</script>
+</body>
+</html>
