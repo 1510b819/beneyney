@@ -70,6 +70,8 @@
 </div>
 
 <script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js'
+import { getDatabase } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js'
 import { joinRoom, selfId } from 'https://esm.run/trystero/firebase'
 
 // ---- Your Firebase config ----
@@ -83,6 +85,11 @@ const firebaseConfig = {
   appId: "1:885364596544:web:dec245628bb143a1c3e4a5",
   measurementId: "G-2XC1GTX70X"
 }
+
+const app = initializeApp(firebaseConfig)
+const db = getDatabase(app)
+
+
 
 // --- UI setup ---
 const $ = sel => document.querySelector(sel)
@@ -126,6 +133,8 @@ btnMute.addEventListener('click', toggleMute)
 
 roomInput.value = getRoomFromURL() || localStorage.getItem('lastRoom') || roomInput.value
 
+
+if(roomInput.value) { join().catch(err => { console.error(err); setStatus('error'); }) }
 // --- Core join ---
 async function join(){
   const id = cleanRoomId(roomInput.value)
@@ -133,7 +142,7 @@ async function join(){
   setURLRoom(id)
   setStatus('joining…')
 
-  room = joinRoom(firebaseConfig, id)
+  room = joinRoom(db, id)
 
   room.onPeerJoin(pid => {
     noPeers.classList.add('hidden')
@@ -253,7 +262,7 @@ function tryPlayWithFallback(vid){
   })
 }
 
-if(roomInput.value) { join().catch(err => { console.error(err); setStatus('error'); }) }
+
 </script>
 </body>
 </html>
