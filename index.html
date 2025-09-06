@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Beneyney</title>
+<title>Beneyney — Firebase Trystero demo</title>
 <style>
   :root{--bg:#0b0f14;--fg:#e7eef7;--muted:#93a1b3;--accent:#7dd3fc;--card:#111723}
   *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial}
@@ -135,7 +135,7 @@ async function join(){
   setURLRoom(id)
   setStatus('joining…')
 
-  // Pass config object directly, Trystero will init Firebase
+  // Pass the firebaseConfig directly, Trystero handles DB
   room = joinRoom(firebaseConfig, id)
 
   room.onPeerJoin(pid => {
@@ -175,15 +175,86 @@ async function join(){
   setStatus(`in room · you: ${selfId.slice(0,6)}`)
 }
 
-// ...rest of your functions remain unchanged (leave, startCamera, shareScreen, etc.)
-function leave(){ if(room) room.leave(); room=null; setStatus('idle'); btnJoin.disabled=false; btnLeave.disabled=true; btnStartCam.disabled=true; btnShareScreen.disabled=true; btnStopLocal.disabled=true; btnMute.disabled=true; peersDiv.innerHTML=''; noPeers.classList.remove('hidden'); stopLocal() }
-function startCamera(){ navigator.mediaDevices.getUserMedia({video:true,audio:true}).then(startLocalStream).catch(err=>alert('Could not access camera/mic: '+err.message)) }
-function shareScreen(){ navigator.mediaDevices.getDisplayMedia({video:true,audio:true}).then(async s=>{ try{ const mic=await navigator.mediaDevices.getUserMedia({audio:true}); mic.getAudioTracks().forEach(t=>s.addTrack(t)) }catch{}; startLocalStream(s) }).catch(err=>alert('Screen share failed: '+err.message)) }
-async function startLocalStream(stream){ if(selfStream) selfStream.getTracks().forEach(t=>t.stop()); selfStream=stream; selfVideo.srcObject=stream; selfNote.classList.remove('hidden'); btnStopLocal.disabled=false; if(!room) await join(); room.addStream(stream); room.onPeerJoin(pid=>room.addStream(stream,pid)); stream.getTracks().forEach(t=>t.addEventListener('ended',stopLocal)) }
-function stopLocal(){ if(selfStream) selfStream.getTracks().forEach(t=>t.stop()); selfVideo.srcObject=null; selfNote.classList.add('hidden'); btnStopLocal.disabled=true }
-function toggleMute(){ if(!selfStream) return; micMuted=!micMuted; selfStream.getAudioTracks().forEach(t=>t.enabled=!micMuted); btnMute.textContent=micMuted?'Unmute':'Mute' }
-function toast(msg){ const el=document.createElement('div'); el.textContent=msg; el.style.position='fixed'; el.style.right='16px'; el.style.bottom='16px'; el.style.padding='10px 12px'; el.style.borderRadius='12px'; el.style.background='#0f172a'; el.style.border='1px solid #243041'; el.style.color='white'; el.style.opacity='0.95'; document.body.appendChild(el); setTimeout(()=>el.remove(),2200) }
-function tryPlayWithFallback(vid){ vid.play().catch(()=>{ let overlay=vid.parentElement.querySelector('.play-overlay'); if(overlay)return; overlay=document.createElement('div'); overlay.className='play-overlay'; const btn=document.createElement('button'); btn.textContent='Tap to play'; btn.style.padding='8px 12px'; btn.style.borderRadius='8px'; btn.onclick=()=>{ vid.play().catch(()=>{}); overlay.remove() }; overlay.appendChild(btn); vid.parentElement.appendChild(overlay) }) }
+async function leave(){
+  try{ room && room.leave() }catch{}
+  room = null
+  setStatus('idle')
+  btnJoin.disabled = false; btnLeave.disabled = true
+  btnStartCam.disabled = true; btnShareScreen.disabled = true
+  btnStopLocal.disabled = true; btnMute.disabled = true
+  peersDiv.innerHTML = ''
+  noPeers.classList.remove('hidden')
+  stopLocal()
+}
+
+async function startCamera(){
+  try{
+    const s = await navigator.mediaDevices.getUserMedia({ video:true, audio:true })
+    await startLocalStream(s)
+  } catch(err){ alert('Could not access camera/mic: '+ err.message) }
+}
+
+async function shareScreen(){
+  try{
+    const s = await navigator.mediaDevices.getDisplayMedia({ video:true, audio:true })
+    try{
+      const mic = await navigator.mediaDevices.getUserMedia({ audio:true })
+      mic.getAudioTracks().forEach(t=> s.addTrack(t))
+    }catch{}
+    await startLocalStream(s)
+  } catch(err){ alert('Screen share failed: ' + err.message) }
+}
+
+async function startLocalStream(stream){
+  if(selfStream){ selfStream.getTracks().forEach(t=> t.stop()) }
+  selfStream = stream
+  selfVideo.srcObject = stream
+  selfNote.classList.remove('hidden')
+  btnStopLocal.disabled = false
+
+  if(!room) await join()
+  room.addStream(stream)
+  room.onPeerJoin(pid => room.addStream(stream, pid))
+
+  stream.getTracks().forEach(track=> track.addEventListener('ended', stopLocal))
+}
+
+function stopLocal(){
+  if(selfStream){ selfStream.getTracks().forEach(t=> t.stop()); selfStream=null }
+  selfVideo.srcObject = null
+  selfNote.classList.add('hidden')
+  btnStopLocal.disabled = true
+}
+
+function toggleMute(){
+  if(!selfStream) return
+  micMuted = !micMuted
+  selfStream.getAudioTracks().forEach(t=> t.enabled = !micMuted)
+  btnMute.textContent = micMuted ? 'Unmute' : 'Mute'
+}
+
+function toast(msg){
+  const el = document.createElement('div')
+  el.textContent = msg
+  el.style.position='fixed';el.style.right='16px';el.style.bottom='16px';el.style.padding='10px 12px';el.style.borderRadius='12px';el.style.background='#0f172a';el.style.border='1px solid #243041';el.style.color='white';el.style.opacity='0.95';
+  document.body.appendChild(el); setTimeout(()=>el.remove(), 2200)
+}
+
+function tryPlayWithFallback(vid){
+  vid.play().catch(()=> {
+    let overlay = vid.parentElement.querySelector('.play-overlay')
+    if(overlay) return
+    overlay = document.createElement('div')
+    overlay.className = 'play-overlay'
+    const btn = document.createElement('button')
+    btn.textContent = 'Tap to play'
+    btn.style.padding = '8px 12px'
+    btn.style.borderRadius = '8px'
+    btn.onclick = ()=> { vid.play().catch(()=>{}); overlay.remove() }
+    overlay.appendChild(btn)
+    vid.parentElement.appendChild(overlay)
+  })
+}
 </script>
 </body>
 </html>
