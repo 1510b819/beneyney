@@ -3,102 +3,106 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Beneyney</title>
+<title>Beneyney — Firebase Trystero demo</title>
 <style>
-    :root{--bg:#0b0f14;--fg:#e7eef7;--muted:#93a1b3;--accent:#7dd3fc;--card:#111723;--ok:#34d399;--warn:#f59e0b}
-    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial}
-    .wrap{max-width:960px;margin:auto;padding:24px}
-    header{display:flex;flex-wrap:wrap;align-items:center;gap:12px;justify-content:space-between}
-    header h1{font-size:20px;margin:0}
-    .card{background:var(--card);border:1px solid #1f2937;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.25);padding:16px;margin:16px 0}
-    .row{display:flex;gap:12px;flex-wrap:wrap}
-    input,button{border-radius:12px;border:1px solid #1f2937;background:#0f1623;color:var(--fg);padding:10px 12px}
-    input{flex:1;min-width:220px}
-    button{cursor:pointer}
-    button.primary{background:linear-gradient(180deg,#0ea5e9,#0369a1);border:0}
-    button.ghost{background:transparent}
-    button:disabled{opacity:.5;cursor:not-allowed}
-    .badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;background:#0f172a;border:1px solid #243041;color:var(--muted)}
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
-    video{width:100%;height:180px;background:#000;border-radius:12px}
-    .hint{color:var(--muted);font-size:14px}
-    .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;background:#0f172a;border:1px solid #243041;border-radius:999px}
-    .danger{background:#241217;border-color:#3a1b20;color:#fecaca}
-    .ok{background:#0f2418;border-color:#173121;color:#bbf7d0}
-    .footer{opacity:.7;font-size:12px}
-    .hidden{display:none}
+  :root{--bg:#0b0f14;--fg:#e7eef7;--muted:#93a1b3;--accent:#7dd3fc;--card:#111723}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial}
+  .wrap{max-width:960px;margin:auto;padding:24px}
+  header{display:flex;flex-wrap:wrap;align-items:center;gap:12px;justify-content:space-between}
+  header h1{font-size:20px;margin:0}
+  .card{background:var(--card);border:1px solid #1f2937;border-radius:12px;padding:16px;margin:16px 0}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  input,button{border-radius:10px;border:1px solid #1f2937;background:#0f1623;color:var(--fg);padding:8px 10px}
+  input{flex:1;min-width:180px}
+  button{cursor:pointer}
+  button.primary{background:linear-gradient(180deg,#0ea5e9,#0369a1);border:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+  video{width:100%;height:160px;background:#000;border-radius:8px;outline:0}
+  .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;background:#0f172a;border:1px solid #243041;border-radius:999px}
+  .hidden{display:none}
+  .play-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:auto}
+  .video-wrap{position:relative}
+  .footer{opacity:.7;font-size:12px}
 </style>
 </head>
 <body>
 <div class="wrap">
-    <header>
-      <h1>Beneyney</h1>
-      <span id="status" class="badge">idle</span>
-    </header>
+  <header>
+    <h1>Beneyney (Firebase)</h1>
+    <span id="status" class="pill">idle</span>
+  </header>
 
-    <div class="card">
-      <div class="row">
-        <input id="room" placeholder="Room ID" />
-        <button id="genRoom">Create Room</button>
-        <button id="copyLink">Copy Join Link</button>
-      </div>
-      <div class="row" style="margin-top:8px">
-        <button id="join" class="primary">Join Room</button>
-        <button id="leave" class="ghost" disabled>Leave</button>
-        <button id="startCam">Start Camera</button>
-        <button id="shareScreen">Share Screen</button>
-        <button id="stopLocal" class="ghost" disabled>Stop Local</button>
-        <button id="muteToggle" class="ghost" disabled>Mute</button>
-      </div>
-      <p class="hint">Tip: Send the join link to your viewer. If they’re on a phone, they may need to tap the video to play audio. Use <em>Share Screen</em> for live streaming your desktop; use <em>Start Camera</em> for a face cam.</p>
+  <div class="card">
+    <div class="row">
+      <input id="room" placeholder="Room ID" />
+      <button id="genRoom">Create Room</button>
+      <button id="copyLink">Copy Join Link</button>
     </div>
-
-    <div class="card">
-      <h3 style="margin-top:0">Your preview</h3>
-      <div class="grid">
-        <video id="self" muted playsinline autoplay></video>
-      </div>
-      <div class="row" style="margin-top:8px">
-        <span id="selfNote" class="pill ok hidden">Streaming to room</span>
-        <span id="noPeers" class="pill">Waiting for peers…</span>
-      </div>
+    <div class="row" style="margin-top:8px">
+      <button id="join" class="primary">Join Room</button>
+      <button id="leave" disabled>Leave</button>
+      <button id="startCam">Start Camera</button>
+      <button id="shareScreen">Share Screen</button>
+      <button id="stopLocal" disabled>Stop Local</button>
+      <button id="muteToggle" disabled>Mute</button>
     </div>
+    <p class="hint" style="color:var(--muted)">Tip: Share the join link. On mobile a tap may be required to start remote audio.</p>
+  </div>
 
-    <div class="card">
-      <h3 style="margin-top:0">Remote viewers</h3>
-      <div id="peers" class="grid"></div>
-      <p class="hint">Each viewer appears here. Audio autoplay may be blocked on mobile; ask them to tap the video once to start sound.</p>
+  <div class="card">
+    <h3 style="margin-top:0">Your preview</h3>
+    <div class="grid">
+      <div class="video-wrap"><video id="self" muted playsinline autoplay></video></div>
     </div>
+    <div class="row" style="margin-top:8px">
+      <span id="selfNote" class="pill hidden">Streaming to room</span>
+      <span id="noPeers" class="pill">Waiting for peers…</span>
+    </div>
+  </div>
 
-    <p class="footer">Built with <a href="https://github.com/dmotz/trystero" target="_blank" rel="noreferrer">Trystero</a>. No servers to run—pure P2P.</p>
+  <div class="card">
+    <h3 style="margin-top:0">Remote viewers</h3>
+    <div id="peers" class="grid"></div>
+    <p class="hint" style="color:var(--muted)">Each remote peer appears here. If audio doesn't play, ask them to tap the video once.</p>
+  </div>
+
+  <p class="footer">Built with <a href="https://github.com/dmotz/trystero" target="_blank" rel="noreferrer">Trystero</a> + Firebase.</p>
 </div>
 
 <script type="module">
-import { joinRoom, selfId } from 'https://esm.run/trystero';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js'
+import { getAnalytics } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics.js'
+import { joinRoom, selfId } from 'https://esm.run/trystero/firebase'
 
-const $ = (sel)=>document.querySelector(sel)
+// ---- Your Firebase config (from console) ----
+const firebaseConfig = {
+  apiKey: "AIzaSyDhdEYo44LlhCwtOwMgqxu6caPHHdEscVk",
+  authDomain: "beneyney-6b314.firebaseapp.com",
+  databaseURL: "https://beneyney-6b314-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "beneyney-6b314",
+  storageBucket: "beneyney-6b314.firebasestorage.app",
+  messagingSenderId: "885364596544",
+  appId: "1:885364596544:web:dec245628bb143a1c3e4a5",
+  measurementId: "G-2XC1GTX70X"
+}
+// --------------------------------------------
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig)
+const analytics = getAnalytics(app)
+
+// --- UI setup ---
+const $ = sel => document.querySelector(sel)
 const status = $('#status')
 const roomInput = $('#room')
-const btnJoin = $('#join')
-const btnLeave = $('#leave')
-const btnStartCam = $('#startCam')
-const btnShareScreen = $('#shareScreen')
-const btnStopLocal = $('#stopLocal')
-const btnMute = $('#muteToggle')
-const btnCopy = $('#copyLink')
-const btnGen = $('#genRoom')
+const btnJoin = $('#join'), btnLeave = $('#leave'), btnStartCam = $('#startCam'),
+      btnShareScreen = $('#shareScreen'), btnStopLocal = $('#stopLocal'),
+      btnMute = $('#muteToggle'), btnCopy = $('#copyLink'), btnGen = $('#genRoom')
+const selfVideo = $('#self'), peersDiv = $('#peers'), selfNote = $('#selfNote'), noPeers = $('#noPeers')
 
-const selfVideo = $('#self')
-const peersDiv = $('#peers')
-const selfNote = $('#selfNote')
-const noPeers = $('#noPeers')
+let room = null, selfStream = null, micMuted = false
 
-let room = null
-let selfStream = null
-let micMuted = false
-
-// Helpers
-function setStatus(text){ status.textContent = text }
+function setStatus(txt){ status.textContent = txt }
 function randId(){ return 'room-' + Math.random().toString(36).slice(2,8) }
 function cleanRoomId(id){ return (id||'').trim().replace(/\s+/g,'-') }
 function getRoomFromURL(){
@@ -112,7 +116,6 @@ function setURLRoom(r){
   localStorage.setItem('lastRoom', r)
 }
 
-// UI Wiring
 btnGen.addEventListener('click', ()=>{ roomInput.value = randId(); setURLRoom(roomInput.value) })
 btnCopy.addEventListener('click', async ()=>{
   if(!roomInput.value) return alert('Enter a room ID first')
@@ -128,41 +131,51 @@ btnShareScreen.addEventListener('click', shareScreen)
 btnStopLocal.addEventListener('click', stopLocal)
 btnMute.addEventListener('click', toggleMute)
 
-// Auto-fill room from URL or last used
 roomInput.value = getRoomFromURL() || localStorage.getItem('lastRoom') || roomInput.value
 
-// Core
+// --- Core join ---
 async function join(){
   const id = cleanRoomId(roomInput.value)
   if(!id) return alert('Pick a room ID')
   setURLRoom(id)
   setStatus('joining…')
-  const config = { appId: 'beneyney-demo' } 
-  room = joinRoom(config, id)
 
-  // Show peer joins/leaves
-  room.onPeerJoin(pid => { noPeers.classList.add('hidden'); toast(`👋 ${pid} joined`) })
-  room.onPeerLeave(pid => { toast(`🚪 ${pid} left`); const el = document.getElementById(`peer-${pid}`); if(el) el.remove(); if(!peersDiv.children.length) noPeers.classList.remove('hidden') })
+  room = joinRoom(firebaseConfig, id)
 
-  // Receive remote streams
+  room.onPeerJoin(pid => {
+    noPeers.classList.add('hidden')
+    toast(`👋 ${pid} joined`)
+  })
+  room.onPeerLeave(pid => {
+    toast(`🚪 ${pid} left`)
+    const el = document.getElementById(`peer-${pid}`)
+    if(el) el.remove()
+    if(!peersDiv.children.length) noPeers.classList.remove('hidden')
+  })
+
   room.onPeerStream((stream, pid) => {
     let vid = document.getElementById(`peer-${pid}`)
     if(!vid){
+      const wrap = document.createElement('div')
+      wrap.className = 'video-wrap'
       vid = document.createElement('video')
       vid.id = `peer-${pid}`
       vid.autoplay = true
       vid.playsInline = true
       vid.controls = true
-      vid.addEventListener('click', ()=> vid.muted = false) // tap to unmute on mobile
-      peersDiv.appendChild(vid)
+      vid.muted = false
+      vid.style.cursor = 'pointer'
+      vid.addEventListener('click', ()=> { vid.muted = false; tryPlayWithFallback(vid) })
+      wrap.appendChild(vid)
+      peersDiv.appendChild(wrap)
     }
     vid.srcObject = stream
+    tryPlayWithFallback(vid)
   })
 
   btnJoin.disabled = true; btnLeave.disabled = false
   btnStartCam.disabled = false; btnShareScreen.disabled = false
-  btnMute.disabled = false
-  btnMute.textContent = 'Mute'
+  btnMute.disabled = false; btnMute.textContent = 'Mute'
   setStatus(`in room · you: ${selfId.slice(0,6)}`)
 }
 
@@ -204,7 +217,6 @@ async function startLocalStream(stream){
   btnStopLocal.disabled = false
 
   if(!room) await join()
-
   room.addStream(stream)
   room.onPeerJoin(pid => room.addStream(stream, pid))
 
@@ -232,8 +244,23 @@ function toast(msg){
   document.body.appendChild(el); setTimeout(()=>el.remove(), 2200)
 }
 
-// Auto-join if room provided in URL
-if(roomInput.value) { join().catch(console.error) }
+function tryPlayWithFallback(vid){
+  vid.play().catch(()=> {
+    let overlay = vid.parentElement.querySelector('.play-overlay')
+    if(overlay) return
+    overlay = document.createElement('div')
+    overlay.className = 'play-overlay'
+    const btn = document.createElement('button')
+    btn.textContent = 'Tap to play'
+    btn.style.padding = '8px 12px'
+    btn.style.borderRadius = '8px'
+    btn.onclick = ()=> { vid.play().catch(()=>{}); overlay.remove() }
+    overlay.appendChild(btn)
+    vid.parentElement.appendChild(overlay)
+  })
+}
+
+if(roomInput.value) { join().catch(err => { console.error(err); setStatus('error'); }) }
 </script>
 </body>
 </html>
