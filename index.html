@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Beneyney — Firebase Trystero demo</title>
+<title>Beneyney</title>
 <style>
   :root{--bg:#0b0f14;--fg:#e7eef7;--muted:#93a1b3;--accent:#7dd3fc;--card:#111723}
   *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial}
@@ -70,11 +70,9 @@
 </div>
 
 <script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js'
-import { getDatabase } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js'
 import { joinRoom, selfId } from 'https://esm.run/trystero/firebase'
 
-// ---- Your Firebase config ----
+// ---- Firebase config ----
 const firebaseConfig = {
   apiKey: "AIzaSyDhdEYo44LlhCwtOwMgqxu6caPHHdEscVk",
   authDomain: "beneyney-6b314.firebaseapp.com",
@@ -85,11 +83,6 @@ const firebaseConfig = {
   appId: "1:885364596544:web:dec245628bb143a1c3e4a5",
   measurementId: "G-2XC1GTX70X"
 }
-
-const app = initializeApp(firebaseConfig)
-const db = getDatabase(app)
-
-
 
 // --- UI setup ---
 const $ = sel => document.querySelector(sel)
@@ -133,8 +126,8 @@ btnMute.addEventListener('click', toggleMute)
 
 roomInput.value = getRoomFromURL() || localStorage.getItem('lastRoom') || roomInput.value
 
-
 if(roomInput.value) { join().catch(err => { console.error(err); setStatus('error'); }) }
+
 // --- Core join ---
 async function join(){
   const id = cleanRoomId(roomInput.value)
@@ -142,7 +135,8 @@ async function join(){
   setURLRoom(id)
   setStatus('joining…')
 
-  room = joinRoom(db, id)
+  // Pass config object directly, Trystero will init Firebase
+  room = joinRoom(firebaseConfig, id)
 
   room.onPeerJoin(pid => {
     noPeers.classList.add('hidden')
@@ -181,88 +175,15 @@ async function join(){
   setStatus(`in room · you: ${selfId.slice(0,6)}`)
 }
 
-async function leave(){
-  try{ room && room.leave() }catch{}
-  room = null
-  setStatus('idle')
-  btnJoin.disabled = false; btnLeave.disabled = true
-  btnStartCam.disabled = true; btnShareScreen.disabled = true
-  btnStopLocal.disabled = true; btnMute.disabled = true
-  peersDiv.innerHTML = ''
-  noPeers.classList.remove('hidden')
-  stopLocal()
-}
-
-async function startCamera(){
-  try{
-    const s = await navigator.mediaDevices.getUserMedia({ video:true, audio:true })
-    await startLocalStream(s)
-  } catch(err){ alert('Could not access camera/mic: '+ err.message) }
-}
-
-async function shareScreen(){
-  try{
-    const s = await navigator.mediaDevices.getDisplayMedia({ video:true, audio:true })
-    try{
-      const mic = await navigator.mediaDevices.getUserMedia({ audio:true })
-      mic.getAudioTracks().forEach(t=> s.addTrack(t))
-    }catch{}
-    await startLocalStream(s)
-  } catch(err){ alert('Screen share failed: ' + err.message) }
-}
-
-async function startLocalStream(stream){
-  if(selfStream){ selfStream.getTracks().forEach(t=> t.stop()) }
-  selfStream = stream
-  selfVideo.srcObject = stream
-  selfNote.classList.remove('hidden')
-  btnStopLocal.disabled = false
-
-  if(!room) await join()
-  room.addStream(stream)
-  room.onPeerJoin(pid => room.addStream(stream, pid))
-
-  stream.getTracks().forEach(track=> track.addEventListener('ended', stopLocal))
-}
-
-function stopLocal(){
-  if(selfStream){ selfStream.getTracks().forEach(t=> t.stop()); selfStream=null }
-  selfVideo.srcObject = null
-  selfNote.classList.add('hidden')
-  btnStopLocal.disabled = true
-}
-
-function toggleMute(){
-  if(!selfStream) return
-  micMuted = !micMuted
-  selfStream.getAudioTracks().forEach(t=> t.enabled = !micMuted)
-  btnMute.textContent = micMuted ? 'Unmute' : 'Mute'
-}
-
-function toast(msg){
-  const el = document.createElement('div')
-  el.textContent = msg
-  el.style.position='fixed';el.style.right='16px';el.style.bottom='16px';el.style.padding='10px 12px';el.style.borderRadius='12px';el.style.background='#0f172a';el.style.border='1px solid #243041';el.style.color='white';el.style.opacity='0.95';
-  document.body.appendChild(el); setTimeout(()=>el.remove(), 2200)
-}
-
-function tryPlayWithFallback(vid){
-  vid.play().catch(()=> {
-    let overlay = vid.parentElement.querySelector('.play-overlay')
-    if(overlay) return
-    overlay = document.createElement('div')
-    overlay.className = 'play-overlay'
-    const btn = document.createElement('button')
-    btn.textContent = 'Tap to play'
-    btn.style.padding = '8px 12px'
-    btn.style.borderRadius = '8px'
-    btn.onclick = ()=> { vid.play().catch(()=>{}); overlay.remove() }
-    overlay.appendChild(btn)
-    vid.parentElement.appendChild(overlay)
-  })
-}
-
-
+// ...rest of your functions remain unchanged (leave, startCamera, shareScreen, etc.)
+function leave(){ if(room) room.leave(); room=null; setStatus('idle'); btnJoin.disabled=false; btnLeave.disabled=true; btnStartCam.disabled=true; btnShareScreen.disabled=true; btnStopLocal.disabled=true; btnMute.disabled=true; peersDiv.innerHTML=''; noPeers.classList.remove('hidden'); stopLocal() }
+function startCamera(){ navigator.mediaDevices.getUserMedia({video:true,audio:true}).then(startLocalStream).catch(err=>alert('Could not access camera/mic: '+err.message)) }
+function shareScreen(){ navigator.mediaDevices.getDisplayMedia({video:true,audio:true}).then(async s=>{ try{ const mic=await navigator.mediaDevices.getUserMedia({audio:true}); mic.getAudioTracks().forEach(t=>s.addTrack(t)) }catch{}; startLocalStream(s) }).catch(err=>alert('Screen share failed: '+err.message)) }
+async function startLocalStream(stream){ if(selfStream) selfStream.getTracks().forEach(t=>t.stop()); selfStream=stream; selfVideo.srcObject=stream; selfNote.classList.remove('hidden'); btnStopLocal.disabled=false; if(!room) await join(); room.addStream(stream); room.onPeerJoin(pid=>room.addStream(stream,pid)); stream.getTracks().forEach(t=>t.addEventListener('ended',stopLocal)) }
+function stopLocal(){ if(selfStream) selfStream.getTracks().forEach(t=>t.stop()); selfVideo.srcObject=null; selfNote.classList.add('hidden'); btnStopLocal.disabled=true }
+function toggleMute(){ if(!selfStream) return; micMuted=!micMuted; selfStream.getAudioTracks().forEach(t=>t.enabled=!micMuted); btnMute.textContent=micMuted?'Unmute':'Mute' }
+function toast(msg){ const el=document.createElement('div'); el.textContent=msg; el.style.position='fixed'; el.style.right='16px'; el.style.bottom='16px'; el.style.padding='10px 12px'; el.style.borderRadius='12px'; el.style.background='#0f172a'; el.style.border='1px solid #243041'; el.style.color='white'; el.style.opacity='0.95'; document.body.appendChild(el); setTimeout(()=>el.remove(),2200) }
+function tryPlayWithFallback(vid){ vid.play().catch(()=>{ let overlay=vid.parentElement.querySelector('.play-overlay'); if(overlay)return; overlay=document.createElement('div'); overlay.className='play-overlay'; const btn=document.createElement('button'); btn.textContent='Tap to play'; btn.style.padding='8px 12px'; btn.style.borderRadius='8px'; btn.onclick=()=>{ vid.play().catch(()=>{}); overlay.remove() }; overlay.appendChild(btn); vid.parentElement.appendChild(overlay) }) }
 </script>
 </body>
 </html>
